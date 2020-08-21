@@ -4,6 +4,28 @@
 			"build": true,
 			"providerPlugin": "awscloudformation",
 			"service": "Lambda"
+		},
+		"ecommerceLambda": {
+			"build": true,
+			"providerPlugin": "awscloudformation",
+			"service": "Lambda",
+			"dependsOn": [
+				{
+					"category": "auth",
+					"resourceName": "ecommerceappe8ab4148",
+					"attributes": [
+						"UserPoolId"
+					]
+				},
+				{
+					"category": "storage",
+					"resourceName": "products",
+					"attributes": [
+						"Name",
+						"Arn"
+					]
+				}
+			]
 		}
 	},
 	"auth": {
@@ -18,6 +40,28 @@
 					"attributes": [
 						"Arn",
 						"Name"
+					]
+				}
+			]
+		}
+	},
+	"storage": {
+		"products": {
+			"service": "DynamoDB",
+			"providerPlugin": "awscloudformation"
+		}
+	},
+	"api": {
+		"ecommerceRESTapi": {
+			"service": "API Gateway",
+			"providerPlugin": "awscloudformation",
+			"dependsOn": [
+				{
+					"category": "function",
+					"resourceName": "ecommerceLambda",
+					"attributes": [
+						"Name",
+						"Arn"
 					]
 				}
 			]
