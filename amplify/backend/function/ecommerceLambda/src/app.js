@@ -96,13 +96,24 @@ app.use(function (req, res, next) {
   next();
 });
 
-/**********************
- * Example get method *
- **********************/
+// db function
+async function getItems() {
+  let params = { TableName: dbProductsTable };
+  try {
+    const data = await docClient.scan(params).promise();
+    return data;
+  } catch (err) {
+    return err;
+  }
+}
 
-app.get("/products", function (req, res) {
-  // Add your code here
-  res.json({ success: "get call succeed!", url: req.url });
+app.get("/products", async function (req, res) {
+  try {
+    const data = await getItems();
+    res.json({ data: data });
+  } catch (err) {
+    res.json({ error: err });
+  }
 });
 
 app.get("/products/*", function (req, res) {
@@ -114,9 +125,21 @@ app.get("/products/*", function (req, res) {
  * Example post method *
  ****************************/
 
-app.post("/products", function (req, res) {
-  // Add your code here
-  res.json({ success: "post call succeed!", url: req.url, body: req.body });
+app.post("/products", async function (req, res) {
+  const { body } = req;
+  const { event } = req.apiGateway;
+  try {
+    await canPerformAction(event, "Admin");
+    const input = { ...body, id: uuid() };
+    const params = {
+      TableName: dbProductsTable,
+      Item: input,
+    };
+    await docClient.put(params).promise();
+    res.json({ success: "item save to database..." });
+  } catch (err) {
+    res.json({ error: err });
+  }
 });
 
 app.post("/products/*", function (req, res) {
@@ -142,9 +165,19 @@ app.put("/products/*", function (req, res) {
  * Example delete method *
  ****************************/
 
-app.delete("/products", function (req, res) {
-  // Add your code here
-  res.json({ success: "delete call succeed!", url: req.url });
+app.delete("/products", async function (req, res) {
+  const { event } = req.apiGateway;
+  try {
+    await canPerformAction(event, "Admin");
+    const params = {
+      TableName: dbProductsTable,
+      Key: { id: req.body.id },
+    };
+    await docClient.delete(params).promise();
+    res.json({ success: "deletion successful" });
+  } catch (err) {
+    res.json({ error: err });
+  }
 });
 
 app.delete("/products/*", function (req, res) {
