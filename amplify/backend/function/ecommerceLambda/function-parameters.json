@@ -1,0 +1,23 @@
+{
+  "mutableParametersState": {
+    "permissions": {
+      "auth": {
+        "ecommerceappe8ab4148": [
+          "create",
+          "read",
+          "update",
+          "delete"
+        ]
+      },
+      "storage": {
+        "products": [
+          "create",
+          "read",
+          "update",
+          "delete"
+        ]
+      }
+    }
+  },
+  "lambdaLayers": []
+}
