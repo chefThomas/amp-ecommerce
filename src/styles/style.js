@@ -1,8 +1,9 @@
 const style = {
   container: {
     margin: "0 auto",
-    padding: "0.5rem 0.5rem",
-    width: 900,
+    padding: "0.5rem 2rem",
+    minWidth: 300,
+    maxWidth: 500,
   },
   profile: {
     container: {
