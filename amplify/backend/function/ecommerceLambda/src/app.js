@@ -22,7 +22,7 @@ const AWS = require("aws-sdk");
 const { v4: uuid } = require("uuid");
 
 // Cognito SDK
-const cognito = new AWS.CognitoIdentityProvider({
+const cognito = new AWS.CognitoIdentityServiceProvider({
   apiVersion: "2016-04-18",
 });
 
@@ -37,28 +37,45 @@ const docClient = new AWS.DynamoDB.DocumentClient({ region });
 // END DB CONFIG  +++++++++++++++++++++++++++++++
 
 // API auth functions added by me begin +++++++++++
-// parses event to check API callers permission group
+// parses event to check API callers permission group memberships
 async function getGroupsForUser(event) {
   let userSub = event.requestContext.identity.cognitoAuthenticationProvider.split(
     ":CognitoSignIn:"
   )[1];
 
+  console.log("################# 1: ", userSub); // check
+  console.log("################# 1.2: ", userPoolId); // check
+
   let userParams = {
     UserPoolId: userPoolId,
-    Filter: `sub = "${userSub}`,
+    Filter: `sub = \"${userSub}\"`,
   };
 
-  let userData = await cognito.listUsers(userParams).promise();
+  console.log("################################### 1.3 ", userParams);
 
-  const user = userData.Users[0];
+  let groupParams;
+  try {
+    // ########## this returns no users
+    let userData = await cognito.listUsers(userParams).promise();
+    const user = userData.Users[0];
+    console.log("################################### 1.4 ", userData);
+    groupParams = {
+      UserPoolId: userPoolId,
+      Username: user.Username,
+    };
+  } catch (error) {
+    console.log("################# 2: ", error);
+  }
 
-  let groupParams = {
-    UserPoolID: userPoolId,
-    Username: user.Username,
-  };
-
-  const groupData = await cognito.adminListGroupsForUser(groupParams).promise();
-  return groupData;
+  try {
+    const groupData = await cognito
+      .adminListGroupsForUser(groupParams)
+      .promise();
+    console.log("################# 3: ", groupData);
+    return groupData;
+  } catch (error) {
+    console.log("get group data on user", error);
+  }
 }
 
 // checks if user is auth'd and belongs to user group passed in as second arg
@@ -68,15 +85,20 @@ function canPerformAction(event, group) {
     if (!event.requestContext.identity.cognitoAuthenticationProvider) {
       return reject();
     }
-    // get user group data
-    const groupData = await getGroupsForUser(event);
-    // create array of groups that user belongs to
-    const groupsForUser = groupData.Groups.map((group) => group.GroupName);
-    // does user belong to group with permission to perform action?
-    if (groupsForUser.includes(group)) {
-      resolve();
-    } else {
-      reject("user not in group, cannot perform action..");
+    try {
+      // get user group data
+      // ERROR
+      const groupData = await getGroupsForUser(event);
+      // create array of groups that user belongs to
+      const groupsForUser = groupData.Groups.map((group) => group.GroupName);
+      // does user belong to group with permission to perform action?
+      if (groupsForUser.includes(group)) {
+        resolve();
+      } else {
+        reject("user not in group, cannot perform action..");
+      }
+    } catch (error) {
+      console.log(error);
     }
   });
 }
@@ -96,7 +118,7 @@ app.use(function (req, res, next) {
   next();
 });
 
-// db function
+// Retrieve all products from db
 async function getItems() {
   let params = { TableName: dbProductsTable };
   try {
@@ -116,18 +138,22 @@ app.get("/products", async function (req, res) {
   }
 });
 
-app.get("/products/*", function (req, res) {
-  // Add your code here
-  res.json({ success: "get call succeed!", url: req.url });
-});
+// app.get("/products/*", function (req, res) {
+//   // Add your code here
+//   res.json({ success: "get call succeed!", url: req.url });
+// });
 
 /****************************
  * Example post method *
  ****************************/
 
 app.post("/products", async function (req, res) {
+  // 502 error with canPerformAction call. Anyone can make this post req :(
+
   const { body } = req;
   const { event } = req.apiGateway;
+
+  console.log("############### EVENT ################", event);
   try {
     await canPerformAction(event, "Admin");
     const input = { ...body, id: uuid() };
@@ -135,17 +161,21 @@ app.post("/products", async function (req, res) {
       TableName: dbProductsTable,
       Item: input,
     };
-    await docClient.put(params).promise();
+    const result = await docClient.put(params).promise();
+    console.log(
+      "####################### RESULT #############################",
+      result
+    );
     res.json({ success: "item save to database..." });
   } catch (err) {
     res.json({ error: err });
   }
 });
 
-app.post("/products/*", function (req, res) {
-  // Add your code here
-  res.json({ success: "post call succeed!", url: req.url, body: req.body });
-});
+// app.post("/products/*", function (req, res) {
+//   // Add your code here
+//   res.json({ success: "post call succeed!", url: req.url, body: req.body });
+// });
 
 /****************************
  * Example put method *
