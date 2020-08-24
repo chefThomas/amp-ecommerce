@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Container from "./Container";
 import { API } from "aws-amplify";
-import { List } from "antd";
+import { Button, List } from "antd";
 import checkUser from "./checkUser";
 
 // renders item inventory
@@ -33,7 +33,7 @@ const Main = () => {
     try {
       const products = state.products.filter((p) => p.id !== id);
       setState({ ...state, products });
-      await API.del("ecommerceRESTapi");
+      await API.del("ecommerceRESTapi", "/products");
       console.log("Item deleted");
     } catch (err) {
       console.log(err);
@@ -47,13 +47,9 @@ const Main = () => {
         loading={state.loading}
         renderItem={(item) => (
           <List.Item
-            actions={
-              user.isAuthorized ? (
-                <p onClick={() => deleteItem(item.id)} key={item.id}>
-                  delete
-                </p>
-              ) : null
-            }
+            actions={[
+              <Button onClick={() => deleteItem(item.id)}>delete</Button>,
+            ]}
           >
             <List.Item.Meta title={item.name} description={item.price} />
           </List.Item>
